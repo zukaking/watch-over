@@ -6,7 +6,11 @@ import math
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-client = boto3.client('rekognition', 'ap-northeast-1')
+HAAR_FILE = "haarcascade_frontalface_default.xml"
+cascade = cv2.CascadeClassifier(HAAR_FILE)
+
+client = boto3.client('rekognition')
+
 
 def rotate(point, theta_x, theta_y, theta_z):
     theta_x = math.pi*theta_x/180
@@ -28,10 +32,13 @@ def rotate(point, theta_x, theta_y, theta_z):
     rot_point   = rot_matrix.dot(point.T).T
     return rot_point
 
-if __name__=="__main__":
-    
-    path = "target"
-    imageNum = 400
+
+def detect_face_and_writeideo():
+    #path = "target"
+    #imageNum = 400
+
+    path = "IMG_2824"
+    imageNum = 6
 
     # 1.download
     #s3 = boto3.resource('s3')
@@ -77,19 +84,32 @@ if __name__=="__main__":
     for i in range(1, imageNum, 1):
         
         # 3.detect face
-        """
-        with open("images/%s/%05d.png"%(path, i), 'rb') as image:
+        input_img = "images/%s/%05d.png"%(path, i)
+        detect_responce = 'detect/%s/%05d.json'%(path, i)
+        output_img = "images/output/%s/%05d.png"%(path, i)
+
+        if not os.path.exists(input_img):
+            continue
+
+        if not os.path.exists('detect/%s'%(path)):
+            os.mkdir('detect/%s'%(path))
+
+        if not os.path.exists('images/output/%s'%(path)):
+            os.makedirs('images/output/%s'%(path))
+        
+        with open(input_img, 'rb') as image:
             response = client.detect_faces(Image={'Bytes': image.read()},Attributes=['ALL'])
-        with open('detect/%s/%05d.json'%(path, i), 'w') as f:
+        with open(detect_responce, 'w') as f:
+            print(response)
             json.dump(response, f, indent=4)
-        continue
-        """
+        #continue
+        
 
         # 4.draw face box
-        with open('detect/%s/%05d.json'%(path, i), 'r') as f:
+        with open(detect_responce, 'r') as f:
             response = json.loads(f.read())
 
-        img = cv2.imread("images/%s/%05d.png"%(path, i))
+        img = cv2.imread(input_img)
         if response["FaceDetails"]:       
 
             width   = response["FaceDetails"][0]["BoundingBox"]["Width"]
@@ -122,5 +142,31 @@ if __name__=="__main__":
         else:
             print(i)
         writer.write(img)
+        cv2.imwrite(output_img,img)
 
     writer.release()
+
+
+def capture_camera():
+    camera_id = 0 #0:incam 1:***
+    cap = cv2.VideoCapture(camera_id)
+
+    while(True):
+        ret, frame = cap.read()
+        
+        face = cascade.detectMultiScale(frame)
+
+        print(face)
+
+        for x, y, w, h in face:
+            cv2.rectangle(frame,(x,y),(x+w,y+h),(0,0,255),1)
+
+        cv2.imshow('Capture',frame)
+        
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+        break
+
+if __name__=="__main__":    
+    capture_camera()
