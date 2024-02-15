@@ -109,6 +109,9 @@ def capture_camera():
 
     continuous_count = 5
 
+    notification_intaerval = 300 #通知間隔（秒数）
+    pre_time = -9999999 #前回通知時間の初期化
+
     detect_angles = []
     while(True):
        
@@ -133,9 +136,11 @@ def capture_camera():
         time.sleep(0.5)
         
         if len(detect_angles) >= continuous_count-1 and detect_face_down(detect_angles):
-            print("send email!!!!")
-            send_email()
-            break
+            now = time.time()
+            if (now - pre_time) > notification_intaerval:
+                print("send email!!!!")
+                send_email()
+                pre_time = time.time()
 
     cap.release()
     cv2.destroyAllWindows()
